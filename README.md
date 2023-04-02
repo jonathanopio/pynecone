@@ -225,3 +225,7 @@ We are actively looking for contributors, no matter your skill level or experien
 ## License
 
 Pynecone is open-source and licensed under the [Apache License 2.0](LICENSE).
+
+##Our group comments
+
+file html.py is changed. Is added parcer that search through the sent string and if finds html <h> tag uses chakra library <heading> component accordingly to the <h1> size
