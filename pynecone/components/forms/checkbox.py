@@ -45,6 +45,21 @@ class Checkbox(ChakraComponent):
     # The spacing between the checkbox and its label text (0.5rem)
     spacing: Var[str]
 
+    label: Var[str]
+
+    @classmethod
+    def create(cls,*children,**props):
+        print(children)
+        print(props)
+        label = props.get("label")
+
+        if label is not None:
+            children = (props["label"])
+            
+            return super().create(children)
+        else:
+            return super().create(*children ,**props)
+        
     @classmethod
     def get_controlled_triggers(cls) -> Dict[str, Var]:
         """Get the event triggers that pass the component's value to the handler.
