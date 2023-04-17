@@ -4,7 +4,7 @@ from typing import Dict
 
 from pynecone.components.component import EVENT_ARG
 from pynecone.components.libs.chakra import ChakraComponent
-from pynecone.var import Var
+from pynecone.var import BaseVar, Var
 
 
 class Checkbox(ChakraComponent):
@@ -48,15 +48,21 @@ class Checkbox(ChakraComponent):
     label: Var[str]
 
     @classmethod
-    def create(cls,*children,**props):
-        print(children)
-        print(props)
+    def Check_Label_Prop(cls, **props):
         label = props.get("label")
 
         if label is not None:
-            children = (props["label"])
+            return True
+        else:
+            return False
+    @classmethod
+    def create(cls,*children,**props):
+        has_label_prop = cls.Check_Label_Prop(**props)
+
+        if has_label_prop:
             
-            return super().create(children)
+            
+            return super().create(props['label'],*children, **props)
         else:
             return super().create(*children ,**props)
         
