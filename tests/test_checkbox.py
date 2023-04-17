@@ -12,13 +12,13 @@ from typing import Dict
 
 
 @pytest.fixture
-def checkbox1() -> Type[Component]:
+def checkbox1() -> Type[Checkbox]:
     """A test component.
 
     Returns:
         A test component.
     """
-    class TestCheckbox(Component):
+    class TestCheckbox(Checkbox):
         tag = "Checkbox"
 
         # Color scheme for checkbox.
@@ -56,6 +56,7 @@ def checkbox1() -> Type[Component]:
 
         label: Var[str]
         
+
         def test_create(*children,**props):
             print(children)
             print(props)
@@ -91,3 +92,9 @@ def test_create_checkbox(checkbox1):
 
     c = checkbox1.test_create(label="checkbox label")
     assert c == "correct handling"
+
+def test_checkbox_prop_handle():
+    checkbox = Checkbox()
+    
+    assert checkbox.Check_Label_Prop({"label": "Checkbox label"}) == True
+

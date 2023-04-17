@@ -48,16 +48,18 @@ class Checkbox(ChakraComponent):
     label: Var[str]
 
     @classmethod
-    def Check_Label_Prop(cls, **props):
+    def Check_Label_Prop(cls, props):
+        print(props)
         label = props.get("label")
 
         if label is not None:
             return True
         else:
             return False
+        
     @classmethod
-    def create(cls,*children,**props):
-        has_label_prop = cls.Check_Label_Prop(**props)
+    def create(cls,*children, **props):
+        has_label_prop = cls.Check_Label_Prop(props)
 
         if has_label_prop:
             
