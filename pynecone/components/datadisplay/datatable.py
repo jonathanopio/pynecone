@@ -1,11 +1,14 @@
 """Table components."""
 
 from typing import Any, List, Optional
-
+import pynecone as pc
+import pandas as pd
 from pynecone.components.component import Component
 from pynecone.components.tags import Tag
 from pynecone.utils import format, imports, types
 from pynecone.var import BaseVar, Var
+from pynecone.components.navigation.nextlink import NextLink
+
 
 
 class Gridjs(Component):
@@ -79,17 +82,46 @@ class DataTable(Gridjs):
             raise ValueError(
                 "column field should be specified when the data field is a list type"
             )
-
+        
+        print("********************************************************************************************props")
+        print(props)
+        props['data'] = cls.replace_links(props['data'])
+        print(props)
         # Create the component.
         return super().create(
             *children,
             **props,
         )
+    
+    @classmethod
+    def replace_links(cls, data):
+        if isinstance(data, pd.DataFrame):
+            for index, row in data.iterrows():
+                for column in data.columns:
+                    cell = row[column]
+                    if isinstance(cell, str) and cls.is_website(cell):
+                        data.at[index, column] = pc.link(cell, href=cell)
+        elif isinstance(data, list):
+            for index, row in enumerate(data):
+                for column_index, cell in enumerate(row):
+                    if isinstance(cell, str) and cls.is_website(cell):
+                        row[column_index] = pc.link(cell, href=cell)
+        return data
 
     def _get_imports(self) -> imports.ImportDict:
         return imports.merge_imports(
             super()._get_imports(), {"": {"gridjs/dist/theme/mermaid.css"}}
         )
+        
+    @classmethod
+    def is_website(cls, string):
+        if "." in string:
+            if " " not in string:
+                if not string.startswith(".") and not string.endswith("."):
+                    if string.count(".") == 1:
+                        return True
+        return False
+
 
     def _render(self) -> Tag:
 
@@ -101,6 +133,7 @@ class DataTable(Gridjs):
                 type_=List[Any],
                 state=self.data.state,
             )
+            print(self.columns)
             self.data = BaseVar(
                 name=f"{self.data.name}.data"
                 if types.is_dataframe(self.data.type_)
