@@ -12,3 +12,10 @@ class Text(ChakraComponent):
 
     # Override the tag. The default tag is `<p>`.
     as_: Var[str]
+    
+    @classmethod
+    def create(cls, *children, **props):
+        
+        
+                        
+        return super().create(*children, **props)
