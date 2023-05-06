@@ -40,15 +40,6 @@ class DataTable(Gridjs):
     # Enable pagination.
     pagination: Var[bool]
 
-    # Set width of table
-    width: Var[str]
-
-    #
-    table_layout: Var[str]
-
-    # Adjust width of each column automatically
-    autoWidth: Var[bool]
-
     @classmethod
     def get_alias(cls) -> Optional[str]:
         """Get the alias for the component.
@@ -74,21 +65,6 @@ class DataTable(Gridjs):
         """
         data = props.get("data")
 
-        # HTML(data.loc[0, "Name"].to_html(render_links=True, escape=False))
-        print(data.loc[0, "Name"])
-
-        # atest=data.loc[0, "Name"]
-        # data.to_html(render_links=True, escape=False)
-        # if( (data.loc[0, "Name"]).startswith("www.")):
-        # print("first print run over")
-
-        data.loc[0, "Name"] = "test"
-        # HTML(data.loc[0, "Name"].to_html(render_links=True, escape=False))
-
-        # data["Name"] = data["Name"].apply(lambda x: f'<a href="http://softhints.com/tutorial/{x}">{x}</a>')
-        # data.to_html(render_links=True, escape=False)
-        # data.loc[0, "Name"] = Html("<a href=""www.google.com"">") +data.loc[0, "Name"]+Html("</a>")
-        # print("after changed")
 
         # If data is a pandas dataframe and columns are provided throw an error.
         if (
@@ -107,6 +83,8 @@ class DataTable(Gridjs):
             raise ValueError(
                 "column field should be specified when the data field is a list type"
             )
+
+        data.loc[0, "Name"] = pc.link("test", href=data.loc[0, "Name"])
 
         # Create the component.
         return super().create(
