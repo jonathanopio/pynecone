@@ -11,8 +11,20 @@ from pynecone.var import Var
 from typing import Dict
 
 
-def test_checkbox_prop_handle():
+def test_label_exists():
+        checkbox = Checkbox()
+    
+        props = {"label": "Test Label"}
+        assert checkbox.Check_Label_Prop(props) == True
+        
+def test_label_does_not_exist():
     checkbox = Checkbox()
     
-    assert checkbox.Check_Label_Prop({"label": "Checkbox label"}) == True
-    assert checkbox.Check_Label_Prop({"not_a_label": "Checkbox label"}) == False
+    props = {"not_label": "Test Value"}
+    assert checkbox.Check_Label_Prop(props) == False
+    
+def test_empty_props():
+    checkbox = Checkbox()
+    
+    props = {}
+    assert checkbox.Check_Label_Prop(props) == False
