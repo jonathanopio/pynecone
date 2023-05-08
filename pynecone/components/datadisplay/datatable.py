@@ -2,7 +2,6 @@
 
 from typing import Any, List, Optional
 
-import pynecone as pc
 from pynecone.components.component import Component
 from pynecone.components.tags import Tag
 from pynecone.utils import format, imports, types
@@ -38,6 +37,10 @@ class DataTable(Gridjs):
     # Enable pagination.
     pagination: Var[bool]
 
+    # width: Var[str]
+    #
+    # table_layout: Var[str]
+
     @classmethod
     def get_alias(cls) -> Optional[str]:
         """Get the alias for the component.
@@ -63,11 +66,10 @@ class DataTable(Gridjs):
         """
         data = props.get("data")
 
-
         # If data is a pandas dataframe and columns are provided throw an error.
         if (
-            types.is_dataframe(type(data))
-            or (isinstance(data, Var) and types.is_dataframe(data.type_))
+                types.is_dataframe(type(data))
+                or (isinstance(data, Var) and types.is_dataframe(data.type_))
         ) and props.get("columns"):
             raise ValueError(
                 "Cannot pass in both a pandas dataframe and columns to the data_table component."
@@ -75,8 +77,8 @@ class DataTable(Gridjs):
 
         # If data is a list and columns are not provided, throw an error
         if (
-            (isinstance(data, Var) and issubclass(data.type_, List))
-            or issubclass(type(data), List)
+                (isinstance(data, Var) and issubclass(data.type_, List))
+                or issubclass(type(data), List)
         ) and not props.get("columns"):
             raise ValueError(
                 "column field should be specified when the data field is a list type"
@@ -87,8 +89,6 @@ class DataTable(Gridjs):
             *children,
             **props,
         )
-
-
 
     def _get_imports(self) -> imports.ImportDict:
         return imports.merge_imports(
