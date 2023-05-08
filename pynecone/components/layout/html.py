@@ -90,8 +90,3 @@ class Html(Box):
                 format = 'sm'
 
         return text, format
-
-            return Heading().create(text, size=format)
-        else:
-            # Create the component.
-            return super().create(**props)
