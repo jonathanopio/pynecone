@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import inspect
 import json
 import os
 import re
@@ -16,7 +15,7 @@ from pynecone import constants
 from pynecone.utils import types
 
 if TYPE_CHECKING:
-    from pynecone.event import EventHandler, EventSpec
+    from pynecone.event import EventChain, EventHandler, EventSpec
 
 WRAP_MAP = {
     "{": "}",
@@ -219,10 +218,13 @@ def format_cond(
     # Import here to avoid circular imports.
     from pynecone.var import Var
 
+    # Use Python truthiness.
+    cond = f"isTrue({cond})"
+
     # Format prop conds.
     if is_prop:
-        prop1 = Var.create(true_value, is_string=type(true_value) == str)
-        prop2 = Var.create(false_value, is_string=type(false_value) == str)
+        prop1 = Var.create(true_value, is_string=type(true_value) is str)
+        prop2 = Var.create(false_value, is_string=type(false_value) is str)
         assert prop1 is not None and prop2 is not None, "Invalid prop values"
         return f"{cond} ? {prop1} : {prop2}".replace("{", "").replace("}", "")
 
@@ -284,7 +286,18 @@ def format_event(event_spec: EventSpec) -> str:
     Returns:
         The compiled event.
     """
-    args = ",".join([":".join((name, val)) for name, val in event_spec.args])
+    args = (
+        ",".join(
+            [
+                ":".join(
+                    (name.name, json.dumps(val.name) if val.is_string else val.name)
+                )
+                for name, val in event_spec.args
+            ]
+        )
+        if event_spec.args is not None
+        else ""
+    )
     return f"E(\"{format_event_handler(event_spec.handler)}\", {wrap(args, '{')})"
 
 
@@ -299,15 +312,28 @@ def format_upload_event(event_spec: EventSpec) -> str:
     """
     from pynecone.compiler import templates
 
-    multi_upload = any(
-        types._issubclass(arg_type, List)
-        for arg_type in inspect.getfullargspec(
-            event_spec.handler.fn
-        ).annotations.values()
-    )
     state, name = get_event_handler_parts(event_spec.handler)
     parent_state = state.split(".")[0]
-    return f'uploadFiles({parent_state}, {templates.RESULT}, {templates.SET_RESULT}, {parent_state}.files, "{state}.{name}",{str(multi_upload).lower()} ,UPLOAD)'
+    return f'uploadFiles({parent_state}, {templates.RESULT}, {templates.SET_RESULT}, {parent_state}.files, "{state}.{name}",UPLOAD)'
+
+
+def format_full_control_event(event_chain: EventChain) -> str:
+    """Format a fully controlled input prop.
+
+    Args:
+        event_chain: The event chain for full controlled input.
+
+    Returns:
+        The compiled event.
+    """
+    from pynecone.compiler import templates
+
+    event_spec = event_chain.events[0]
+    arg = event_spec.args[0][1] if event_spec.args else None
+    state_name = event_chain.state_name
+    chain = ",".join([format_event(event) for event in event_chain.events])
+    event = templates.FULL_CONTROL(state_name=state_name, arg=arg, chain=chain)
+    return event
 
 
 def format_query_params(router_data: Dict[str, Any]) -> Dict[str, str]:
@@ -381,6 +407,20 @@ def format_state(value: Any) -> Dict:
         "or subclasses of pc.Base. "
         f"Got var of type {type(value)}."
     )
+
+
+def format_ref(ref: str) -> str:
+    """Format a ref.
+
+    Args:
+        ref: The ref to format.
+
+    Returns:
+        The formatted ref.
+    """
+    # Replace all non-word characters with underscores.
+    clean_ref = re.sub(r"[^\w]+", "_", ref)
+    return f"ref_{clean_ref}"
 
 
 def json_dumps(obj: Any) -> str:

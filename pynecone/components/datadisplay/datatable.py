@@ -1,11 +1,11 @@
 """Table components."""
 
-from typing import Any, List, Optional
+from typing import Any, List
 
 from pynecone.components.component import Component
 from pynecone.components.tags import Tag
 from pynecone.utils import format, imports, types
-from pynecone.var import BaseVar, Var
+from pynecone.var import BaseVar, ComputedVar, ImportVar, Var
 
 
 class Gridjs(Component):
@@ -19,10 +19,13 @@ class DataTable(Gridjs):
 
     tag = "Grid"
 
-    # The data to display. Either a list of dictionaries or a pandas dataframe.
+    alias = "DataTableGrid"
+
+    # The data to display. Either a list of lists or a pandas dataframe.
     data: Any
 
-    # The columns to display.
+    # The list of columns to display. Required if data is a list and should not be provided
+    # if the data field is a dataframe
     columns: Var[List]
 
     # Enable a search bar.
@@ -42,15 +45,6 @@ class DataTable(Gridjs):
     # table_layout: Var[str]
 
     @classmethod
-    def get_alias(cls) -> Optional[str]:
-        """Get the alias for the component.
-
-        Returns:
-            The alias.
-        """
-        return "DataTableGrid"
-
-    @classmethod
     def create(cls, *children, **props):
         """Create a datatable component.
 
@@ -65,6 +59,19 @@ class DataTable(Gridjs):
             ValueError: If a pandas dataframe is passed in and columns are also provided.
         """
         data = props.get("data")
+        columns = props.get("columns")
+
+        # The annotation should be provided if data is a computed var. We need this to know how to
+        # render pandas dataframes.
+        if isinstance(data, ComputedVar) and data.type_ == Any:
+            raise ValueError(
+                "Annotation of the computed var assigned to the data field should be provided."
+            )
+
+        if columns and isinstance(columns, ComputedVar) and columns.type_ == Any:
+            raise ValueError(
+                "Annotation of the computed var assigned to the column field should be provided."
+            )
 
         # If data is a pandas dataframe and columns are provided throw an error.
         if (
@@ -92,7 +99,8 @@ class DataTable(Gridjs):
 
     def _get_imports(self) -> imports.ImportDict:
         return imports.merge_imports(
-            super()._get_imports(), {"": {"gridjs/dist/theme/mermaid.css"}}
+            super()._get_imports(),
+            {"": {ImportVar(tag="gridjs/dist/theme/mermaid.css")}},
         )
 
     def _render(self) -> Tag:

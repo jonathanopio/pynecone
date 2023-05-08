@@ -22,7 +22,7 @@ from pynecone.event import (
 )
 from pynecone.style import Style
 from pynecone.utils import format, imports, path_ops, types
-from pynecone.var import BaseVar, Var
+from pynecone.var import BaseVar, ImportVar, Var
 
 
 class Component(Base, ABC):
@@ -42,6 +42,12 @@ class Component(Base, ABC):
 
     # The tag to use when rendering the component.
     tag: Optional[str] = None
+
+    # The alias for the tag.
+    alias: Optional[str] = None
+
+    # Whether the import is default or named.
+    is_default: Optional[bool] = False
 
     # A unique key for the component.
     key: Any = None
@@ -134,7 +140,12 @@ class Component(Base, ABC):
 
             # Check if the key is an event trigger.
             if key in triggers:
-                kwargs["event_triggers"][key] = self._create_event_chain(key, value)
+                state_name = kwargs["value"].name if kwargs.get("value", False) else ""
+                # Temporarily disable full control for event triggers.
+                full_control = False
+                kwargs["event_triggers"][key] = self._create_event_chain(
+                    key, value, state_name, full_control
+                )
 
         # Remove any keys that were added as events.
         for key in kwargs["event_triggers"]:
@@ -167,12 +178,16 @@ class Component(Base, ABC):
         value: Union[
             Var, EventHandler, EventSpec, List[Union[EventHandler, EventSpec]], Callable
         ],
+        state_name: str = "",
+        full_control: bool = False,
     ) -> Union[EventChain, Var]:
         """Create an event chain from a variety of input types.
 
         Args:
             event_trigger: The event trigger to bind the chain to.
             value: The value to create the event chain from.
+            state_name: The state to be fully controlled.
+            full_control: Whether full controlled or not.
 
         Returns:
             The event chain.
@@ -205,7 +220,9 @@ class Component(Base, ABC):
                     event = call_event_handler(v, arg)
 
                     # Check that the event handler takes no args if it's uncontrolled.
-                    if not is_controlled_event and len(event.args) > 0:
+                    if not is_controlled_event and (
+                        event.args is not None and len(event.args) > 0
+                    ):
                         raise ValueError(
                             f"Event handler: {v.fn} for uncontrolled event {event_trigger} should not take any args."
                         )
@@ -234,14 +251,19 @@ class Component(Base, ABC):
             events = [
                 EventSpec(
                     handler=e.handler,
-                    local_args=(EVENT_ARG.name,),
+                    local_args=(EVENT_ARG,),
                     args=get_handler_args(e, arg),
                 )
                 for e in events
             ]
 
+        # set state name when fully controlled input
+        state_name = state_name if full_control else ""
+
         # Return the event chain.
-        return EventChain(events=events)
+        return EventChain(
+            events=events, state_name=state_name, full_control=full_control
+        )
 
     @classmethod
     def get_triggers(cls) -> Set[str]:
@@ -260,15 +282,6 @@ class Component(Base, ABC):
             A dict mapping the event trigger to the var that is passed to the handler.
         """
         return {}
-
-    @classmethod
-    def get_alias(cls) -> Optional[str]:
-        """Get the alias for the component.
-
-        Returns:
-            The alias.
-        """
-        return None
 
     def __repr__(self) -> str:
         """Represent the component in React.
@@ -293,9 +306,10 @@ class Component(Base, ABC):
             The tag to render.
         """
         # Create the base tag.
-        alias = self.get_alias()
-        name = alias if alias is not None else self.tag
-        tag = Tag(name=name, special_props=self.special_props)
+        tag = Tag(
+            name=self.tag if not self.alias else self.alias,
+            special_props=self.special_props,
+        )
 
         # Add component props to the tag.
         props = {attr: getattr(self, attr) for attr in self.get_props()}
@@ -332,6 +346,7 @@ class Component(Base, ABC):
         # Import here to avoid circular imports.
         from pynecone.components.base.bare import Bare
 
+        
         # Validate all the children.
         for child in children:
             # Make sure the child is a valid type.
@@ -431,9 +446,7 @@ class Component(Base, ABC):
 
     def _get_imports(self) -> imports.ImportDict:
         if self.library is not None and self.tag is not None:
-            alias = self.get_alias()
-            tag = self.tag if alias is None else " as ".join([self.tag, alias])
-            return {self.library: {tag}}
+            return {self.library: {self.import_var}}
         return {}
 
     def get_imports(self) -> imports.ImportDict:
@@ -445,6 +458,47 @@ class Component(Base, ABC):
         return imports.merge_imports(
             self._get_imports(), *[child.get_imports() for child in self.children]
         )
+
+    def _get_hooks(self) -> Optional[str]:
+        """Get the React hooks for this component.
+
+        Returns:
+            The hooks for just this component.
+        """
+        ref = self.get_ref()
+        if ref is not None:
+            return f"const {ref} = useRef(null);"
+        return None
+
+    def get_hooks(self) -> Set[str]:
+        """Get the React hooks for this component and its children.
+
+        Returns:
+            The code that should appear just before returning the rendered component.
+        """
+        # Store the code in a set to avoid duplicates.
+        code = set()
+
+        # Add the hook code for this component.
+        hooks = self._get_hooks()
+        if hooks is not None:
+            code.add(hooks)
+
+        # Add the hook code for the children.
+        for child in self.children:
+            code.update(child.get_hooks())
+
+        return code
+
+    def get_ref(self) -> Optional[str]:
+        """Get the name of the ref for the component.
+
+        Returns:
+            The ref name.
+        """
+        if self.id is None:
+            return None
+        return format.format_ref(self.id)
 
     def get_custom_components(
         self, seen: Optional[Set[str]] = None
@@ -465,6 +519,36 @@ class Component(Base, ABC):
         for child in self.children:
             custom_components |= child.get_custom_components(seen=seen)
         return custom_components
+
+    @property
+    def import_var(self):
+        """The tag to import.
+
+        Returns:
+            An import var.
+        """
+        return ImportVar(tag=self.tag, is_default=self.is_default, alias=self.alias)
+
+    def is_full_control(self, kwargs: dict) -> bool:
+        """Return if the component is fully controlled input.
+
+        Args:
+            kwargs: The component kwargs.
+
+        Returns:
+            Whether fully controlled.
+        """
+        value = kwargs.get("value")
+        if value is None or type(value) != BaseVar:
+            return False
+
+        on_change = kwargs.get("on_change")
+        if on_change is None or type(on_change) != EventHandler:
+            return False
+
+        value = value.full_name
+        on_change = on_change.fn.__qualname__
+        return value == on_change.replace(constants.SETTER_PREFIX, "")
 
 
 # Map from component to styling.
@@ -509,6 +593,8 @@ class CustomComponent(Component):
                 value = self._create_event_chain(key, value)
                 self.props[format.to_camel_case(key)] = value
                 continue
+            if not types._issubclass(type_, Var):
+                type_ = Var[type_]
             type_ = types.get_args(type_)[0]
             if types._issubclass(type_, Base):
                 try:
