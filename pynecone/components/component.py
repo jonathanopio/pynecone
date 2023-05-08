@@ -346,6 +346,7 @@ class Component(Base, ABC):
         # Import here to avoid circular imports.
         from pynecone.components.base.bare import Bare
 
+        
         # Validate all the children.
         for child in children:
             # Make sure the child is a valid type.
