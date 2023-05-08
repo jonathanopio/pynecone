@@ -35,7 +35,7 @@ class DataTable(Gridjs):
     resizable: Var[bool]
 
     # Enable pagination.
-    pagination: Var[dic]
+    pagination: Var[dict]
 
     @classmethod
     def get_alias(cls) -> Optional[str]:
