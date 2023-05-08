@@ -15,6 +15,7 @@ from typing import (
     Type,
     Union,
     _GenericAlias,  # type: ignore
+    get_type_hints,
 )
 
 from plotly.graph_objects import Figure
@@ -104,6 +105,24 @@ class Var(ABC):
             ) from e
 
         return BaseVar(name=name, type_=type_, is_local=is_local, is_string=is_string)
+
+    @classmethod
+    def create_safe(
+        cls, value: Any, is_local: bool = True, is_string: bool = False
+    ) -> Var:
+        """Create a var from a value, guaranteeing that it is not None.
+
+        Args:
+            value: The value to create the var from.
+            is_local: Whether the var is local.
+            is_string: Whether the var is a string literal.
+
+        Returns:
+            The var.
+        """
+        var = cls.create(value, is_local=is_local, is_string=is_string)
+        assert var is not None
+        return var
 
     @classmethod
     def __class_getitem__(cls, type_: str) -> _GenericAlias:
@@ -373,7 +392,7 @@ class Var(ABC):
         Returns:
             A var representing the equality comparison.
         """
-        return self.compare("==", other)
+        return self.compare("===", other)
 
     def __ne__(self, other: Var) -> Var:
         """Perform an inequality comparison.
@@ -384,7 +403,7 @@ class Var(ABC):
         Returns:
             A var representing the inequality comparison.
         """
-        return self.compare("!=", other)
+        return self.compare("!==", other)
 
     def __gt__(self, other: Var) -> Var:
         """Perform a greater than comparison.
@@ -704,6 +723,9 @@ class BaseVar(Var, Base):
 
         Returns:
             The default value of the var.
+
+        Raises:
+            ImportError: If the var is a dataframe and pandas is not installed.
         """
         type_ = (
             self.type_.__origin__ if types.is_generic_alias(self.type_) else self.type_
@@ -720,6 +742,15 @@ class BaseVar(Var, Base):
             return {}
         if issubclass(type_, tuple):
             return ()
+        if types.is_dataframe(type_):
+            try:
+                import pandas as pd
+
+                return pd.DataFrame()
+            except ImportError as e:
+                raise ImportError(
+                    "Please install pandas to use dataframes in your app."
+                ) from e
         return set() if issubclass(type_, set) else None
 
     def get_setter_name(self, include_state: bool = True) -> str:
@@ -777,8 +808,9 @@ class ComputedVar(property, Var):
         Returns:
             The type of the var.
         """
-        if "return" in self.fget.__annotations__:
-            return self.fget.__annotations__["return"]
+        hints = get_type_hints(self.fget)
+        if "return" in hints:
+            return hints["return"]
         return Any
 
 

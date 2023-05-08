@@ -134,7 +134,12 @@ class Component(Base, ABC):
 
             # Check if the key is an event trigger.
             if key in triggers:
-                kwargs["event_triggers"][key] = self._create_event_chain(key, value)
+                state_name = kwargs["value"].name if kwargs.get("value", False) else ""
+                # Temporarily disable full control for event triggers.
+                full_control = False
+                kwargs["event_triggers"][key] = self._create_event_chain(
+                    key, value, state_name, full_control
+                )
 
         # Remove any keys that were added as events.
         for key in kwargs["event_triggers"]:
@@ -167,12 +172,16 @@ class Component(Base, ABC):
         value: Union[
             Var, EventHandler, EventSpec, List[Union[EventHandler, EventSpec]], Callable
         ],
+        state_name: str = "",
+        full_control: bool = False,
     ) -> Union[EventChain, Var]:
         """Create an event chain from a variety of input types.
 
         Args:
             event_trigger: The event trigger to bind the chain to.
             value: The value to create the event chain from.
+            state_name: The state to be fully controlled.
+            full_control: Whether full controlled or not.
 
         Returns:
             The event chain.
@@ -234,14 +243,19 @@ class Component(Base, ABC):
             events = [
                 EventSpec(
                     handler=e.handler,
-                    local_args=(EVENT_ARG.name,),
+                    local_args=(EVENT_ARG,),
                     args=get_handler_args(e, arg),
                 )
                 for e in events
             ]
 
+        # set state name when fully controlled input
+        state_name = state_name if full_control else ""
+
         # Return the event chain.
-        return EventChain(events=events)
+        return EventChain(
+            events=events, state_name=state_name, full_control=full_control
+        )
 
     @classmethod
     def get_triggers(cls) -> Set[str]:
@@ -447,6 +461,47 @@ class Component(Base, ABC):
             self._get_imports(), *[child.get_imports() for child in self.children]
         )
 
+    def _get_hooks(self) -> Optional[str]:
+        """Get the React hooks for this component.
+
+        Returns:
+            The hooks for just this component.
+        """
+        ref = self.get_ref()
+        if ref is not None:
+            return f"const {ref} = useRef(null);"
+        return None
+
+    def get_hooks(self) -> Set[str]:
+        """Get the React hooks for this component and its children.
+
+        Returns:
+            The code that should appear just before returning the rendered component.
+        """
+        # Store the code in a set to avoid duplicates.
+        code = set()
+
+        # Add the hook code for this component.
+        hooks = self._get_hooks()
+        if hooks is not None:
+            code.add(hooks)
+
+        # Add the hook code for the children.
+        for child in self.children:
+            code.update(child.get_hooks())
+
+        return code
+
+    def get_ref(self) -> Optional[str]:
+        """Get the name of the ref for the component.
+
+        Returns:
+            The ref name.
+        """
+        if self.id is None:
+            return None
+        return format.format_ref(self.id)
+
     def get_custom_components(
         self, seen: Optional[Set[str]] = None
     ) -> Set[CustomComponent]:
@@ -466,6 +521,27 @@ class Component(Base, ABC):
         for child in self.children:
             custom_components |= child.get_custom_components(seen=seen)
         return custom_components
+
+    def is_full_control(self, kwargs: dict) -> bool:
+        """Return if the component is fully controlled input.
+
+        Args:
+            kwargs: The component kwargs.
+
+        Returns:
+            Whether fully controlled.
+        """
+        value = kwargs.get("value")
+        if value is None or type(value) != BaseVar:
+            return False
+
+        on_change = kwargs.get("on_change")
+        if on_change is None or type(on_change) != EventHandler:
+            return False
+
+        value = value.full_name
+        on_change = on_change.fn.__qualname__
+        return value == on_change.replace(constants.SETTER_PREFIX, "")
 
 
 # Map from component to styling.
@@ -510,6 +586,8 @@ class CustomComponent(Component):
                 value = self._create_event_chain(key, value)
                 self.props[format.to_camel_case(key)] = value
                 continue
+            if not types._issubclass(type_, Var):
+                type_ = Var[type_]
             type_ = types.get_args(type_)[0]
             if types._issubclass(type_, Base):
                 try:

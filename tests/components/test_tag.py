@@ -1,9 +1,9 @@
-from typing import Dict
+from typing import Any, Dict
 
 import pytest
 
 from pynecone.components.tags import CondTag, Tag
-from pynecone.event import EventChain, EventHandler, EventSpec
+from pynecone.event import EVENT_ARG, EventChain, EventHandler, EventSpec
 from pynecone.var import BaseVar, Var
 
 
@@ -32,15 +32,25 @@ def mock_event(arg):
                 events=[
                     EventSpec(
                         handler=EventHandler(fn=mock_event),
-                        local_args=("e",),
-                        args=(("arg", "e.target.value"),),
+                        local_args=(EVENT_ARG,),
+                        args=((Var.create_safe("arg"), EVENT_ARG.target.value),),
                     )
                 ]
             ),
-            '{(e) => Event([E("mock_event", {arg:e.target.value})])}',
+            '{(_e) => Event([E("mock_event", {arg:_e.target.value})])}',
         ),
         ({"a": "red", "b": "blue"}, '{{"a": "red", "b": "blue"}}'),
         (BaseVar(name="var", type_="int"), "{var}"),
+        (
+            BaseVar(
+                name="_",
+                type_=Any,
+                state="",
+                is_local=True,
+                is_string=False,
+            ),
+            "{_}",
+        ),
         (BaseVar(name='state.colors["a"]', type_="str"), '{state.colors["a"]}'),
         ({"a": BaseVar(name="val", type_="str")}, '{{"a": val}}'),
         ({"a": BaseVar(name='"val"', type_="str")}, '{{"a": "val"}}'),
@@ -153,4 +163,7 @@ def test_format_cond_tag():
         false_value=str(Tag(name="h2", contents="False content")),
         cond=BaseVar(name="logged_in", type_=bool),
     )
-    assert str(tag) == "{logged_in ? <h1>True content</h1> : <h2>False content</h2>}"
+    assert (
+        str(tag)
+        == "{isTrue(logged_in) ? <h1>True content</h1> : <h2>False content</h2>}"
+    )
