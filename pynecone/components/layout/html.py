@@ -1,8 +1,10 @@
 """A html component."""
 
-from typing import Any
+from typing import Dict
 
 from pynecone.components.layout.box import Box
+from pynecone.components.typography.heading import Heading
+from pynecone.var import Var
 
 from pynecone.components.typography.heading import Heading
 from pynecone.var import Var
@@ -16,7 +18,7 @@ class Html(Box):
     """
 
     # The HTML to render.
-    dangerouslySetInnerHTML: Any
+    dangerouslySetInnerHTML: Var[Dict]
 
     @classmethod
     def create(cls, *children, **props):
@@ -41,9 +43,26 @@ class Html(Box):
             props["dangerouslySetInnerHTML"] = {"__html": children[0]}
 
         
+
+        
+        string = children[0]
+        text, format = cls.Format_Headings(string)
+        if (format != ''):
+            return Heading().create(text, size=format)
+        else:
+            # Create the component.
+            return super().create(**props)
+
+    @classmethod
+    def Format_Headings(cls, string):
+        heading = 0
+        text = ""
+        format = ''
+
         heading = 0
         string = children[0]
         text = ""
+
         for i in range(len(string)-2):
             if (string[i]=='<' and string[i+1]=='h'):
                 if(string[i+2]).isdigit() and (int(string[i+2])<=6 and int(string[i+2])>0):
@@ -69,6 +88,9 @@ class Html(Box):
                 format = 'md'
             elif heading == 6:
                 format = 'sm'
+
+        return text, format
+
             return Heading().create(text, size=format)
         else:
             # Create the component.
