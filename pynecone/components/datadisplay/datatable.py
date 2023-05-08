@@ -84,8 +84,6 @@ class DataTable(Gridjs):
                 "column field should be specified when the data field is a list type"
             )
 
-        data.loc[0, "Name"] = pc.link("test", href=data.loc[0, "Name"])
-
         # Create the component.
         return super().create(
             *children,
