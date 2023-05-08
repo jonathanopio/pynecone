@@ -1,9 +1,12 @@
 """A link component."""
+import urllib.request as ulib
 
+import pynecone as pc
 from pynecone.components.component import Component
 from pynecone.components.libs.chakra import ChakraComponent
 from pynecone.components.navigation.nextlink import NextLink
 from pynecone.var import Var
+from pynecone.components.layout import Html
 
 
 class Link(ChakraComponent):
@@ -34,5 +37,18 @@ class Link(ChakraComponent):
         Returns:
             The component.
         """
-        kwargs = {"href": props.pop("href") if "href" in props else "#"}
-        return NextLink.create(super().create(*children, **props), **kwargs)
+        address = props.get("href")
+        if not cls.get_url_status(address):
+            return Html.create("<h1> 404! Link is broken! </h1>")
+        else:
+            kwargs = {"href": props.pop("href") if "href" in props else "#"}
+            return NextLink.create(super().create(*children, **props), **kwargs)
+
+    @classmethod
+    def get_url_status(cls, url):
+        try:
+            r = ulib.urlopen(url)
+            print(url + "\tStatus: " + str(r.getcode()))
+            return True
+        except BaseException as e:
+            return False
