@@ -2,9 +2,7 @@
 
 from typing import Any, List, Optional
 
-import pandas as pd
 import pynecone as pc
-from pynecone import Html
 from pynecone.components.component import Component
 from pynecone.components.tags import Tag
 from pynecone.utils import format, imports, types
