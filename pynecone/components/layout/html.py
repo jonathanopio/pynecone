@@ -6,6 +6,9 @@ from pynecone.components.layout.box import Box
 from pynecone.components.typography.heading import Heading
 from pynecone.var import Var
 
+from pynecone.components.typography.heading import Heading
+from pynecone.var import Var
+
 
 class Html(Box):
     """Render the html.
@@ -40,6 +43,7 @@ class Html(Box):
             props["dangerouslySetInnerHTML"] = {"__html": children[0]}
 
         
+
         
         string = children[0]
         text, format = cls.Format_Headings(string)
@@ -54,6 +58,11 @@ class Html(Box):
         heading = 0
         text = ""
         format = ''
+
+        heading = 0
+        string = children[0]
+        text = ""
+
         for i in range(len(string)-2):
             if (string[i]=='<' and string[i+1]=='h'):
                 if(string[i+2]).isdigit() and (int(string[i+2])<=6 and int(string[i+2])>0):
@@ -79,4 +88,10 @@ class Html(Box):
                 format = 'md'
             elif heading == 6:
                 format = 'sm'
+
         return text, format
+
+            return Heading().create(text, size=format)
+        else:
+            # Create the component.
+            return super().create(**props)
