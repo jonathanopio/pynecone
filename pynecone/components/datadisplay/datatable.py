@@ -38,7 +38,7 @@ class DataTable(Gridjs):
     resizable: Var[bool]
 
     # Enable pagination.
-    pagination: Var[bool]
+    pagination: Var[dict]
 
     #Enable set width
     width: Var[str]
