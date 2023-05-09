@@ -32,6 +32,11 @@ def index():
             pc.checkbox("checkbox without label prop"),
             pc.checkbox(label="checkbox with label prop"),
         ),
+         
+         # in order to test for the page up button
+         pc.link(
+            pc.button("↑", href="#top", position="fixed", bottom="8px", right="10px")
+        ),
     )
 
 app = pc.App(state=State)
