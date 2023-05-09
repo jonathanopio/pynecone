@@ -60,7 +60,6 @@ class Html(Box):
         format = ''
 
         heading = 0
-        string = children[0]
         text = ""
 
         for i in range(len(string)-2):

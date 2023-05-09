@@ -12,14 +12,26 @@ class State(pc.State):
 
 def index():
     return pc.center(
+        
         pc.vstack(
+            # For testing the html tag issues
             pc.html("<h1>Hello World</h1>"),
             pc.html("<h2>Hello World</h2>"),
             pc.html("<h3>Hello World</h3>"),
             pc.html("<h4>Hello World</h4>"),
             pc.html("<h5>Hello World</h5>"),
             pc.html("<h6>Hello World</h6>"),
-        )
+
+            # For testing Text component changes
+            pc.text(
+                "hello, I'm for the text component",
+                font_family='"Fira Code", Menlo, Consolas, monospace',
+            ),
+
+            # For testing Checkbox label variable support - TL individual issue
+            pc.checkbox("checkbox without label prop"),
+            pc.checkbox(label="checkbox with label prop"),
+        ),
     )
 
 app = pc.App(state=State)
