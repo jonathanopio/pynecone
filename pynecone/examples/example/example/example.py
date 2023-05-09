@@ -11,7 +11,12 @@ class State(pc.State):
      opened: bool = False
 
 def index():
-    return pc.center(
+    nba_data = pd.read_csv(
+        "https://media.geeksforgeeks.org/wp-content/uploads/nba.csv"
+        
+    )
+    
+     return pc.center(
         
         pc.vstack(
             # For testing the html tag issues
@@ -37,6 +42,16 @@ def index():
          pc.link(
             pc.button("↑", href="#top", position="fixed", bottom="8px", right="10px")
         ),
+         
+         #for testing datable resizable 
+         pc.data_table(
+                data=nba_data[["Name", "Height", "Age", "Team"]],
+                pagination=True,
+                search=True,
+                sort=True,
+                width='100%',
+                table_layout='auto', 
+         ),
     )
 
 app = pc.App(state=State)
