@@ -40,9 +40,9 @@ class DataTable(Gridjs):
     # Enable pagination.
     pagination: Var[bool]
 
-    # width: Var[str]
-    #
-    # table_layout: Var[str]
+    width: Var[str]
+    
+    table_layout: Var[str]
 
     @classmethod
     def create(cls, *children, **props):
