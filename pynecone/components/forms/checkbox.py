@@ -4,7 +4,7 @@ from typing import Dict
 
 from pynecone.components.component import EVENT_ARG
 from pynecone.components.libs.chakra import ChakraComponent
-from pynecone.var import Var
+from pynecone.var import BaseVar, Var
 
 
 class Checkbox(ChakraComponent):
@@ -13,6 +13,9 @@ class Checkbox(ChakraComponent):
     tag = "Checkbox"
 
     # Color scheme for checkbox.
+    # Options:
+    # "whiteAlpha" | "blackAlpha" | "gray" | "red" | "orange" | "yellow" | "green" | "teal" | "blue" | "cyan"
+    # | "purple" | "pink" | "linkedin" | "facebook" | "messenger" | "whatsapp" | "twitter" | "telegram"
     color_scheme: Var[str]
 
     # "sm" | "md" | "lg"
@@ -45,6 +48,28 @@ class Checkbox(ChakraComponent):
     # The spacing between the checkbox and its label text (0.5rem)
     spacing: Var[str]
 
+    label: Var[str]
+
+    @classmethod
+    def Check_Label_Prop(cls, props):
+        label = props.get("label")
+
+        if label is not None:
+            return True
+        else:
+            return False
+        
+    @classmethod
+    def create(cls,*children, **props):
+        has_label_prop = cls.Check_Label_Prop(props)
+
+        if has_label_prop:
+            
+            
+            return super().create(props['label'],*children, **props)
+        else:
+            return super().create(*children ,**props)
+        
     @classmethod
     def get_controlled_triggers(cls) -> Dict[str, Var]:
         """Get the event triggers that pass the component's value to the handler.

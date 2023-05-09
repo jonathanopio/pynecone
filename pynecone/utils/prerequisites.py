@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import platform
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -12,6 +13,7 @@ from types import ModuleType
 from typing import Optional
 
 import typer
+from packaging import version
 from redis import Redis
 
 from pynecone import constants
@@ -19,7 +21,7 @@ from pynecone.config import get_config
 from pynecone.utils import console, path_ops
 
 
-def check_node_version(min_version):
+def check_node_version(min_version=constants.MIN_NODE_VERSION):
     """Check the version of Node.js.
 
     Args:
@@ -33,12 +35,28 @@ def check_node_version(min_version):
         result = subprocess.run(
             ["node", "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        # The output will be in the form "vX.Y.Z", so we can split it on the "v" character and take the second part
-        version = result.stdout.decode().strip().split("v")[1]
+        # The output will be in the form "vX.Y.Z", but version.parse() can handle it
+        current_version = version.parse(result.stdout.decode())
         # Compare the version numbers
-        return version.split(".") >= min_version.split(".")
+        return current_version >= version.parse(min_version)
     except Exception:
         return False
+
+
+def get_bun_version() -> Optional[version.Version]:
+    """Get the version of bun.
+
+    Returns:
+        The version of bun.
+    """
+    try:
+        # Run the bun -v command and capture the output
+        result = subprocess.run(
+            ["bun", "-v"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        return version.parse(result.stdout.decode().strip())
+    except Exception:
+        return None
 
 
 def get_package_manager() -> str:
@@ -52,15 +70,17 @@ def get_package_manager() -> str:
         Exit: If the app directory is invalid.
 
     """
+    config = get_config()
+
     # Check that the node version is valid.
-    if not check_node_version(constants.MIN_NODE_VERSION):
+    if not check_node_version():
         console.print(
             f"[red]Node.js version {constants.MIN_NODE_VERSION} or higher is required to run Pynecone."
         )
         raise typer.Exit()
 
     # On Windows, we use npm instead of bun.
-    if platform.system() == "Windows":
+    if platform.system() == "Windows" or config.disable_bun:
         npm_path = path_ops.which("npm")
         if npm_path is None:
             raise FileNotFoundError("Pynecone requires npm to be installed on Windows.")
@@ -129,8 +149,9 @@ def create_config(app_name: str):
     # Import here to avoid circular imports.
     from pynecone.compiler import templates
 
+    config_name = f"{re.sub(r'[^a-zA-Z]', '', app_name).capitalize()}Config"
     with open(constants.CONFIG_FILE, "w") as f:
-        f.write(templates.PCCONFIG.format(app_name=app_name))
+        f.write(templates.PCCONFIG.format(app_name=app_name, config_name=config_name))
 
 
 def create_web_directory(root: Path) -> str:
@@ -163,16 +184,17 @@ def initialize_gitignore():
         f.write(path_ops.join(files))
 
 
-def initialize_app_directory(app_name: str):
+def initialize_app_directory(app_name: str, template: constants.Template):
     """Initialize the app directory on pc init.
 
     Args:
         app_name: The name of the app.
+        template: The template to use.
     """
     console.log("Initializing the app directory.")
-    path_ops.cp(constants.APP_TEMPLATE_DIR, app_name)
+    path_ops.cp(os.path.join(constants.TEMPLATE_DIR, "apps", template.value), app_name)
     path_ops.mv(
-        os.path.join(app_name, constants.APP_TEMPLATE_FILE),
+        os.path.join(app_name, template.value + ".py"),
         os.path.join(app_name, app_name + constants.PY_EXT),
     )
     path_ops.cp(constants.ASSETS_TEMPLATE_DIR, constants.APP_ASSETS_DIR)
@@ -185,13 +207,33 @@ def initialize_web_directory():
     path_ops.rm(os.path.join(constants.WEB_TEMPLATE_DIR, constants.PACKAGE_LOCK))
     path_ops.cp(constants.WEB_TEMPLATE_DIR, constants.WEB_DIR)
 
+    # Write the current version of distributed pynecone package to a PCVERSION_APP_FILE."""
+    with open(constants.PCVERSION_APP_FILE, "w") as f:
+        pynecone_json = {"version": constants.VERSION}
+        json.dump(pynecone_json, f, ensure_ascii=False)
+
 
 def install_bun():
     """Install bun onto the user's system.
 
     Raises:
         FileNotFoundError: If the required packages are not installed.
+        Exit: If the bun version is not supported.
     """
+    bun_version = get_bun_version()
+    if bun_version is not None and (
+        bun_version < version.parse(constants.MIN_BUN_VERSION)
+        or bun_version > version.parse(constants.MAX_BUN_VERSION)
+        or str(bun_version) in constants.INVALID_BUN_VERSIONS
+    ):
+        console.print(
+            f"""[red]Bun version {bun_version} is not supported by Pynecone. Please change your to bun version to be between {constants.MIN_BUN_VERSION} and {constants.MAX_BUN_VERSION}."""
+        )
+        console.print(
+            f"""[red]Upgrade by running the following command:[/red]\n\n{constants.INSTALL_BUN}"""
+        )
+        raise typer.Exit()
+
     # Bun is not supported on Windows.
     if platform.system() == "Windows":
         console.log("Skipping bun installation on Windows.")
@@ -256,10 +298,8 @@ def is_latest_template() -> bool:
     Returns:
         Whether the app is using the latest template.
     """
-    with open(constants.PCVERSION_TEMPLATE_FILE) as f:  # type: ignore
-        template_version = json.load(f)["version"]
     if not os.path.exists(constants.PCVERSION_APP_FILE):
         return False
     with open(constants.PCVERSION_APP_FILE) as f:  # type: ignore
         app_version = json.load(f)["version"]
-    return app_version >= template_version
+    return app_version == constants.VERSION

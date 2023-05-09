@@ -8,7 +8,10 @@ from pynecone.utils import path_ops
 # Template for the Pynecone config file.
 PCCONFIG = f"""import pynecone as pc
 
-config = pc.Config(
+class {{config_name}}(pc.Config):
+    pass
+
+config = {{config_name}}(
     app_name="{{app_name}}",
     db_url="{constants.DB_URL}",
     env=pc.Env.DEV,
@@ -76,6 +79,7 @@ PAGE = path_ops.join(
         "{state}",
         "{events}",
         "{effects}",
+        "{hooks}",
         "return (",
         "{render}",
         ")",
@@ -154,7 +158,15 @@ UPLOAD_FN = path_ops.join(
         "}})",
     ]
 ).format
-
+FULL_CONTROL = path_ops.join(
+    [
+        "{{setState(prev => ({{",
+        "...prev,{state_name}: {arg}",
+        "}}), ",
+        "()=>Event([{chain}])",
+        ")}}",
+    ]
+).format
 
 # Effects.
 ROUTER = constants.ROUTER

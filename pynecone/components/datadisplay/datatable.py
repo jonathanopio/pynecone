@@ -1,14 +1,11 @@
 """Table components."""
 
-from typing import Any, List, Optional
+from typing import Any, List
 
-import pandas as pd
-import pynecone as pc
-from pynecone import Html
 from pynecone.components.component import Component
 from pynecone.components.tags import Tag
 from pynecone.utils import format, imports, types
-from pynecone.var import BaseVar, Var
+from pynecone.var import BaseVar, ComputedVar, ImportVar, Var
 
 
 class Gridjs(Component):
@@ -22,10 +19,13 @@ class DataTable(Gridjs):
 
     tag = "Grid"
 
-    # The data to display. Either a list of dictionaries or a pandas dataframe.
+    alias = "DataTableGrid"
+
+    # The data to display. Either a list of lists or a pandas dataframe.
     data: Any
 
-    # The columns to display.
+    # The list of columns to display. Required if data is a list and should not be provided
+    # if the data field is a dataframe
     columns: Var[List]
 
     # Enable a search bar.
@@ -70,12 +70,24 @@ class DataTable(Gridjs):
             ValueError: If a pandas dataframe is passed in and columns are also provided.
         """
         data = props.get("data")
+        columns = props.get("columns")
 
+        # The annotation should be provided if data is a computed var. We need this to know how to
+        # render pandas dataframes.
+        if isinstance(data, ComputedVar) and data.type_ == Any:
+            raise ValueError(
+                "Annotation of the computed var assigned to the data field should be provided."
+            )
+
+        if columns and isinstance(columns, ComputedVar) and columns.type_ == Any:
+            raise ValueError(
+                "Annotation of the computed var assigned to the column field should be provided."
+            )
 
         # If data is a pandas dataframe and columns are provided throw an error.
         if (
-            types.is_dataframe(type(data))
-            or (isinstance(data, Var) and types.is_dataframe(data.type_))
+                types.is_dataframe(type(data))
+                or (isinstance(data, Var) and types.is_dataframe(data.type_))
         ) and props.get("columns"):
             raise ValueError(
                 "Cannot pass in both a pandas dataframe and columns to the data_table component."
@@ -83,14 +95,12 @@ class DataTable(Gridjs):
 
         # If data is a list and columns are not provided, throw an error
         if (
-            (isinstance(data, Var) and issubclass(data.type_, List))
-            or issubclass(type(data), List)
+                (isinstance(data, Var) and issubclass(data.type_, List))
+                or issubclass(type(data), List)
         ) and not props.get("columns"):
             raise ValueError(
                 "column field should be specified when the data field is a list type"
             )
-
-        data.loc[0, "Name"] = pc.link("test", href=data.loc[0, "Name"])
 
         # Create the component.
         return super().create(
@@ -98,11 +108,10 @@ class DataTable(Gridjs):
             **props,
         )
 
-
-
     def _get_imports(self) -> imports.ImportDict:
         return imports.merge_imports(
-            super()._get_imports(), {"": {"gridjs/dist/theme/mermaid.css"}}
+            super()._get_imports(),
+            {"": {ImportVar(tag="gridjs/dist/theme/mermaid.css")}},
         )
 
     def _render(self) -> Tag:
