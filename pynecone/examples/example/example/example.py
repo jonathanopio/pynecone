@@ -43,15 +43,18 @@ def index():
             pc.button("↑", href="#top", position="fixed", bottom="8px", right="10px")
         ),
          
-         #for testing datable resizable 
+         # for testing datable resizable 
          pc.data_table(
                 data=nba_data[["Name", "Height", "Age", "Team"]],
-                pagination=True,
                 search=True,
                 sort=True,
                 width='100%',
                 table_layout='auto', 
          ),
+          
+          # group issue 3, 404 page for broken links
+          pc.link("https://www.pynec0ne.com"),
+          
     )
 
 app = pc.App(state=State)
