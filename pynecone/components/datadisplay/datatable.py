@@ -40,6 +40,10 @@ class DataTable(Gridjs):
     # Enable pagination.
     pagination: Var[bool]
 
+    # width: Var[str]
+    #
+    # table_layout: Var[str]
+
     @classmethod
     def create(cls, *children, **props):
         """Create a datatable component.
@@ -71,8 +75,8 @@ class DataTable(Gridjs):
 
         # If data is a pandas dataframe and columns are provided throw an error.
         if (
-            types.is_dataframe(type(data))
-            or (isinstance(data, Var) and types.is_dataframe(data.type_))
+                types.is_dataframe(type(data))
+                or (isinstance(data, Var) and types.is_dataframe(data.type_))
         ) and props.get("columns"):
             raise ValueError(
                 "Cannot pass in both a pandas dataframe and columns to the data_table component."
@@ -80,8 +84,8 @@ class DataTable(Gridjs):
 
         # If data is a list and columns are not provided, throw an error
         if (
-            (isinstance(data, Var) and types._issubclass(data.type_, List))
-            or issubclass(type(data), List)
+                (isinstance(data, Var) and issubclass(data.type_, List))
+                or issubclass(type(data), List)
         ) and not props.get("columns"):
             raise ValueError(
                 "column field should be specified when the data field is a list type"
