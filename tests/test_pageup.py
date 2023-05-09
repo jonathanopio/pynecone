@@ -1,6 +1,6 @@
 """A html component."""
 
-from pynecone import Button, Link
+from pynecone import Button
 
 
 def test_button():
