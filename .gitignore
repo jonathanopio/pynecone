@@ -1,6 +1,5 @@
 **/.DS_Store
 **/*.pyc
 dist/*
-examples/
 .idea
 .vscode
