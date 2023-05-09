@@ -40,9 +40,20 @@ class DataTable(Gridjs):
     # Enable pagination.
     pagination: Var[bool]
 
+    #Enable set width
     width: Var[str]
-    
+
+    #enable to set table layout
     table_layout: Var[str]
+        
+    @classmethod
+    def get_alias(cls) -> Optional[str]:
+        """Get the alias for the component.
+
+        Returns:
+            The alias.
+        """
+        return "DataTableGrid"
 
     @classmethod
     def create(cls, *children, **props):
